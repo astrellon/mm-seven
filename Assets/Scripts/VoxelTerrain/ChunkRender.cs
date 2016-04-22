@@ -289,12 +289,19 @@ public class ChunkRender : MonoBehaviour
         var rotation = Quaternion.AngleAxis(GetRotationDegress(voxel.Rotation), Vector3.up);
         if (voxel.IsUpsideDown)
         {
-            rotation *= Quaternion.AngleAxis(180.0f, Vector3.forward);
+            for (var i = points.Count - 1; i >= 0; i--)
+            {
+                var point = points[i];
+                var p2 = new Vector3(point.x, -point.y, point.z);
+                context.Verticies.Add(position + (rotation * p2));
+            }
         }
-
-        foreach (var point in points)
+        else
         {
-            context.Verticies.Add(position + (rotation *point));
+            foreach (var point in points)
+            {
+                context.Verticies.Add(position + (rotation * point));
+            }
         }
     }
 

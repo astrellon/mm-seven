@@ -13,17 +13,30 @@ public class VoxelTerrain : MonoBehaviour
         var chunk = chunkObj.AddComponent<Chunk>();
         chunk.Parent = this;
 
-        chunk.SetVoxel(0, 0, 0, new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.North, false, 0));
-        chunk.SetVoxel(1, 0, 0, new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.East, false, 0));
-        chunk.SetVoxel(2, 0, 0, new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.South, false, 0));
-        chunk.SetVoxel(3, 0, 0, new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.West, false, 0));
+        var types = new[] {
+            Voxel.MeshShapeType.Cube,
+            Voxel.MeshShapeType.Ramp,
+            Voxel.MeshShapeType.SmallCorner,
+            Voxel.MeshShapeType.LargeCorner,
+            Voxel.MeshShapeType.MiterConcave,
+            Voxel.MeshShapeType.MiterConvex,
+        };
 
-        /*
-        chunk.SetVoxel(0, 0, 2, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.North, true, 0));
-        chunk.SetVoxel(1, 0, 2, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.East, true, 0));
-        chunk.SetVoxel(2, 0, 2, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.South, true, 0));
-        chunk.SetVoxel(3, 0, 2, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.West, true, 0));
-        */
+        var ypos = 0u;
+        foreach (var type in types)
+        {
+            chunk.SetVoxel(0, ypos, 0, new Voxel(type, Voxel.RotationType.North, false, 0));
+            chunk.SetVoxel(2, ypos, 0, new Voxel(type, Voxel.RotationType.East, false, 0));
+            chunk.SetVoxel(4, ypos, 0, new Voxel(type, Voxel.RotationType.South, false, 0));
+            chunk.SetVoxel(6, ypos, 0, new Voxel(type, Voxel.RotationType.West, false, 0));
+
+            chunk.SetVoxel(0, ypos, 2, new Voxel(type, Voxel.RotationType.North, true, 0));
+            chunk.SetVoxel(2, ypos, 2, new Voxel(type, Voxel.RotationType.East, true, 0));
+            chunk.SetVoxel(4, ypos, 2, new Voxel(type, Voxel.RotationType.South, true, 0));
+            chunk.SetVoxel(6, ypos, 2, new Voxel(type, Voxel.RotationType.West, true, 0));
+
+            ypos += 2u;
+        }
 
         Chunks.Add(chunk);
 
