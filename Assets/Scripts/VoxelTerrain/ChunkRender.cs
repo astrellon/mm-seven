@@ -7,9 +7,18 @@ public class ChunkRender : MonoBehaviour
 {
     private class MeshContext
     {
-        public List<int> Triangles = new List<int>();
         public List<Vector3> Verticies = new List<Vector3>();
     }
+
+    private static Vector3 FrontTop1 = new Vector3(-0.5f, 0.5f, 0.5f);
+    private static Vector3 FrontTop2 = new Vector3(0.5f, 0.5f, 0.5f);
+    private static Vector3 FrontBot1 = new Vector3(-0.5f, -0.5f, 0.5f);
+    private static Vector3 FrontBot2 = new Vector3(0.5f, -0.5f, 0.5f);
+    private static Vector3 BackTop1 = new Vector3(-0.5f, 0.5f, -0.5f);
+    private static Vector3 BackTop2 = new Vector3(0.5f, 0.5f, -0.5f);
+    private static Vector3 BackBot1 = new Vector3(-0.5f, -0.5f, -0.5f);
+    private static Vector3 BackBot2 = new Vector3(0.5f, -0.5f, -0.5f);
+
     public Chunk Chunk { get; private set; }
 
     private Dictionary<ushort, MeshContext> TypedBlocks = new Dictionary<ushort, MeshContext>();
@@ -46,13 +55,36 @@ public class ChunkRender : MonoBehaviour
                 for (var x = 0; x < 16; x++, i++)
                 {
                     var voxel = Chunk.Voxels[i];
-                    if (voxel.MeshShape == Voxel.MeshShapeType.None)
+                    var shape = voxel.MeshShape; 
+                    if (shape == Voxel.MeshShapeType.None)
                     {
                         continue;
                     }
 
                     var context = GetMeshContext(voxel);
-                    RenderCube(new Vector3(x, y, z), voxel, context);
+                    var position = new Vector3(x, y, z);
+
+                    switch (shape)
+                    {
+                        case Voxel.MeshShapeType.Cube:
+                            RenderCube(position, voxel, context);
+                            break;
+                        case Voxel.MeshShapeType.Ramp:
+                            RenderRamp(position, voxel, context);
+                            break;
+                        case Voxel.MeshShapeType.SmallCorner:
+                            RenderSmallCorner(position, voxel, context);
+                            break;
+                        case Voxel.MeshShapeType.LargeCorner:
+                            RenderLargeCorner(position, voxel, context);
+                            break;
+                        case Voxel.MeshShapeType.MiterConvex:
+                            RenderMiterConvex(position, voxel, context);
+                            break;
+                        case Voxel.MeshShapeType.MiterConcave:
+                            RenderMiterConcave(position, voxel, context);
+                            break;
+                    }
                 }
             }
         }
@@ -79,7 +111,12 @@ public class ChunkRender : MonoBehaviour
         meshFilter.mesh = mesh;
 
         mesh.vertices = context.Verticies.ToArray();
-        mesh.triangles = context.Triangles.ToArray();
+        var triangles = new int[context.Verticies.Count];
+        for (var i = 0; i < context.Verticies.Count; i++)
+        {
+            triangles[i] = i;
+        }
+        mesh.triangles = triangles;
         mesh.Optimize();
         mesh.RecalculateNormals();
 
@@ -100,7 +137,176 @@ public class ChunkRender : MonoBehaviour
         RenderQuad(context, position, Vector3.back);
     }
 
+    void RenderRamp(Vector3 position, Voxel voxel, MeshContext context)
+    {
+        var points = new List<Vector3>(GetQuadVertices(Vector3.forward));
+        points.AddRange(GetQuadVertices(Vector3.down));
+
+        // Ramp
+        points.Add(FrontTop1);
+        points.Add(FrontTop2);
+        points.Add(BackBot1);
+
+        points.Add(BackBot2);
+        points.Add(BackBot1);
+        points.Add(FrontTop2);
+
+        // Left
+        points.Add(FrontBot1);
+        points.Add(FrontTop1);
+        points.Add(BackBot1);
+
+        // Right
+        points.Add(BackBot2);
+        points.Add(FrontTop2);
+        points.Add(FrontBot2);
+
+        AddPoints(position, points, voxel, context);
+    }
+
+    void RenderSmallCorner(Vector3 position, Voxel voxel, MeshContext context)
+    {
+        var points = new List<Vector3>();
+
+        points.Add(FrontBot2);
+        points.Add(FrontTop2);
+        points.Add(FrontBot1);
+
+        points.Add(FrontBot2);
+        points.Add(BackBot2);
+        points.Add(FrontTop2);
+
+        points.Add(FrontBot1);
+        points.Add(FrontTop2);
+        points.Add(BackBot2);
+
+        points.Add(BackBot2);
+        points.Add(FrontBot2);
+        points.Add(FrontBot1);
+
+        AddPoints(position, points, voxel, context);
+    }
+
+    void RenderLargeCorner(Vector3 position, Voxel voxel, MeshContext context)
+    {
+        var points = new List<Vector3>();
+        points.AddRange(GetQuadVertices(Vector3.forward));
+        points.AddRange(GetQuadVertices(Vector3.right));
+        points.AddRange(GetQuadVertices(Vector3.down));
+
+        // Top
+        points.Add(FrontTop1);
+        points.Add(FrontTop2);
+        points.Add(BackTop2);
+
+        // Back
+        points.Add(BackBot1);
+        points.Add(BackTop2);
+        points.Add(BackBot2);
+
+        // Left
+        points.Add(FrontBot1);
+        points.Add(FrontTop1);
+        points.Add(BackBot1);
+
+        // Middle
+        points.Add(BackTop2);
+        points.Add(BackBot1);
+        points.Add(FrontTop1);
+
+        AddPoints(position, points, voxel, context);
+    }
+
+    void RenderMiterConvex(Vector3 position, Voxel voxel, MeshContext context)
+    {
+        var points = new List<Vector3>();
+        points.AddRange(GetQuadVertices(Vector3.down));
+
+        points.Add(FrontBot2);
+        points.Add(FrontTop2);
+        points.Add(FrontBot1);
+
+        points.Add(FrontBot2);
+        points.Add(BackBot2);
+        points.Add(FrontTop2);
+
+        points.Add(FrontBot1);
+        points.Add(FrontTop2);
+        points.Add(BackBot1);
+
+        points.Add(BackBot2);
+        points.Add(BackBot1);
+        points.Add(FrontTop2);
+
+        AddPoints(position, points, voxel, context);
+    }
+
+    void RenderMiterConcave(Vector3 position, Voxel voxel, MeshContext context)
+    {
+        var points = new List<Vector3>();
+        points.AddRange(GetQuadVertices(Vector3.down));
+        points.AddRange(GetQuadVertices(Vector3.forward));
+        points.AddRange(GetQuadVertices(Vector3.right));
+
+        // Back
+        points.Add(BackBot1);
+        points.Add(BackTop2);
+        points.Add(BackBot2);
+
+        // Left
+        points.Add(FrontBot1);
+        points.Add(FrontTop1);
+        points.Add(BackBot1);
+
+        points.Add(FrontTop1);
+        points.Add(FrontTop2);
+        points.Add(BackBot1);
+
+        points.Add(BackTop2);
+        points.Add(BackBot1);
+        points.Add(FrontTop2);
+
+        AddPoints(position, points, voxel, context);
+    }
+
+    private static float GetRotationDegress(Voxel.RotationType rotation)
+    {
+        switch (rotation)
+        {
+            case Voxel.RotationType.East:
+                return 90.0f;
+            case Voxel.RotationType.South:
+                return 180.0f;
+            case Voxel.RotationType.West:
+                return 270.0f;
+            default:
+                return 0.0f;
+        }
+    }
+
+    void AddPoints(Vector3 position, List<Vector3> points, Voxel voxel, MeshContext context)
+    {
+        var rotation = Quaternion.AngleAxis(GetRotationDegress(voxel.Rotation), Vector3.up);
+        if (voxel.IsUpsideDown)
+        {
+            rotation *= Quaternion.AngleAxis(180.0f, Vector3.forward);
+        }
+
+        foreach (var point in points)
+        {
+            context.Verticies.Add(position + (rotation *point));
+        }
+    }
+
     void RenderQuad(MeshContext context, Vector3 position, Vector3 normal)
+    {
+        foreach (var point in GetQuadVertices(normal))
+        {
+            context.Verticies.Add(position + point);
+        }
+    }
+
+    IEnumerable<Vector3> GetQuadVertices(Vector3 normal)
     {
         var rotation = Quaternion.FromToRotation(Vector3.up, normal);
         var p1 = rotation * new Vector3(-0.5f, 0, -0.5f);
@@ -109,17 +315,12 @@ public class ChunkRender : MonoBehaviour
         var p4 = rotation * new Vector3(0.5f, 0, 0.5f);
         var halfNormal = normal * 0.5f;
 
-        context.Verticies.Add(position + p3 + halfNormal);
-        context.Verticies.Add(position + p2 + halfNormal);
-        context.Verticies.Add(position + p1 + halfNormal);
+        yield return p3 + halfNormal;
+        yield return p2 + halfNormal;
+        yield return p1 + halfNormal;
 
-        context.Verticies.Add(position + p4 + halfNormal);
-        context.Verticies.Add(position + p2 + halfNormal);
-        context.Verticies.Add(position + p3 + halfNormal);
-
-        for (var i = 0; i < 6; i++)
-        {
-            context.Triangles.Add(context.Triangles.Count);
-        }
+        yield return p4 + halfNormal;
+        yield return p2 + halfNormal;
+        yield return p3 + halfNormal;
     }
 }

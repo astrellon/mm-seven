@@ -13,12 +13,17 @@ public class VoxelTerrain : MonoBehaviour
         var chunk = chunkObj.AddComponent<Chunk>();
         chunk.Parent = this;
 
-        var v1 = new Voxel(Voxel.MeshShapeType.LargeCorner, Voxel.RotationType.South, true, 0);
-        var v2 = new Voxel(Voxel.MeshShapeType.Cube, Voxel.RotationType.North, false, 0);
-        var v3 = new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.East, true, 1);
-        chunk.SetVoxel(0, 0, 0, v1);
-        chunk.SetVoxel(1, 1, 0, v2);
-        chunk.SetVoxel(2, 0, 1, v3);
+        chunk.SetVoxel(0, 0, 0, new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.North, false, 0));
+        chunk.SetVoxel(1, 0, 0, new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.East, false, 0));
+        chunk.SetVoxel(2, 0, 0, new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.South, false, 0));
+        chunk.SetVoxel(3, 0, 0, new Voxel(Voxel.MeshShapeType.MiterConcave, Voxel.RotationType.West, false, 0));
+
+        /*
+        chunk.SetVoxel(0, 0, 2, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.North, true, 0));
+        chunk.SetVoxel(1, 0, 2, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.East, true, 0));
+        chunk.SetVoxel(2, 0, 2, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.South, true, 0));
+        chunk.SetVoxel(3, 0, 2, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.West, true, 0));
+        */
 
         Chunks.Add(chunk);
 
