@@ -31,6 +31,11 @@ public struct Voxel
         ShapeData = CalcShape(meshShape, rotation, upsideDown);
         BlockType = blockType;
     }
+    public Voxel(MeshShapeType meshShape, ushort blockType)
+    {
+        ShapeData = CalcShape(meshShape, RotationType.North, false);
+        BlockType = blockType;
+    }
 
     public MeshShapeType MeshShape
     {

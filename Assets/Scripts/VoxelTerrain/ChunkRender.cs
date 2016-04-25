@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -8,6 +9,17 @@ public class ChunkRender : MonoBehaviour
     private class MeshContext
     {
         public List<Vector3> Verticies = new List<Vector3>();
+        public Vector3 WorldPosition = Vector3.zero;
+
+        public void AddVertex(Vector3 vertex)
+        {
+            var worldVertex = vertex + WorldPosition;
+            var dx = (Mathf.PerlinNoise(worldVertex.x, worldVertex.y) - 0.5f) * 0.3f;
+            var dy = (Mathf.PerlinNoise(worldVertex.y, worldVertex.z) - 0.5f) * 0.3f;
+            var dz = (Mathf.PerlinNoise(worldVertex.z, worldVertex.x) - 0.5f) * 0.3f;
+
+            Verticies.Add(new Vector3(vertex.x + dx, vertex.y + dy, vertex.z + dz));
+        }
     }
 
     private static Vector3 FrontTop1 = new Vector3(-0.5f, 0.5f, 0.5f);
@@ -19,19 +31,132 @@ public class ChunkRender : MonoBehaviour
     private static Vector3 BackBot1 = new Vector3(-0.5f, -0.5f, -0.5f);
     private static Vector3 BackBot2 = new Vector3(0.5f, -0.5f, -0.5f);
 
+    [System.Flags]
+    public enum Direction : byte
+    {
+        XPos = 0x00,
+        XNeg = 0x01,
+        YPos = 0x02,
+        YNeg = 0x04,
+        ZPos = 0x08,
+        ZNeg = 0x10
+    }
+    private static Vector3 DirectionToVector(Direction direction)
+    {
+        switch (direction)
+        {
+            case Direction.XNeg:
+                return Vector3.left;
+            case Direction.XPos:
+                return Vector3.right;
+            case Direction.YNeg:
+                return Vector3.down;
+            case Direction.YPos:
+                return Vector3.up;
+            case Direction.ZNeg:
+                return Vector3.back;
+            case Direction.ZPos:
+                return Vector3.forward;
+        }
+        return Vector3.zero;
+    }
+    private static Direction[] CardinalDirections = new[] { Direction.ZPos, Direction.XPos, Direction.ZNeg, Direction.XNeg };
+
     public Chunk Chunk { get; private set; }
 
     private Dictionary<ushort, MeshContext> TypedBlocks = new Dictionary<ushort, MeshContext>();
 
-	// Use this for initialization
-	void Start ()
+    private struct QuadPosition
+    {
+        public byte x, y, z;
+        public MeshContext context;
+        public Direction direction;
+
+        public override int GetHashCode()
+        {
+            int hash = 17;
+            hash = hash * 23 + x.GetHashCode();
+            hash = hash * 23 + y.GetHashCode();
+            hash = hash * 23 + z.GetHashCode();
+            hash = hash * 23 + direction.GetHashCode();
+
+            return hash;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is QuadPosition)
+            {
+                var quadPos = (QuadPosition)obj;
+
+                return x == quadPos.x &&
+                    y == quadPos.y &&
+                    z == quadPos.z &&
+                    direction == quadPos.direction;
+            }
+            return false;
+        }
+
+        public QuadPosition(Vector3 position, MeshContext context, Direction direction)
+        {
+            this.x = (byte)position.x;
+            this.y = (byte)position.y;
+            this.z = (byte)position.z;
+            this.context = context;
+            this.direction = direction;
+        }
+    }
+        private static Direction FlipDirection(Direction input)
+        {
+            switch (input)
+            {
+                case Direction.XNeg:
+                    return Direction.XPos;
+                case Direction.XPos:
+                    return Direction.XNeg;
+                case Direction.YNeg:
+                    return Direction.YPos;
+                case Direction.YPos:
+                    return Direction.YNeg;
+                case Direction.ZNeg:
+                    return Direction.ZPos;
+                case Direction.ZPos:
+                    return Direction.ZNeg;
+            }
+            return Direction.XNeg;
+        }
+
+        private static Vector3 MoveByDirection(Vector3 position, Direction direction)
+        {
+            switch (direction)
+            {
+                case Direction.XNeg:
+                    return new Vector3(position.x - 1, position.y, position.z);
+                case Direction.XPos:
+                    return new Vector3(position.x + 1, position.y, position.z);
+                case Direction.YNeg:
+                    return new Vector3(position.x, position.y - 1, position.z);
+                case Direction.YPos:
+                    return new Vector3(position.x, position.y + 1, position.z);
+                case Direction.ZNeg:
+                    return new Vector3(position.x, position.y, position.z - 1);
+                case Direction.ZPos:
+                    return new Vector3(position.x, position.y, position.z + 1);
+            }
+            return Vector3.zero;
+        }
+
+    private HashSet<QuadPosition> QuadPositions = new HashSet<QuadPosition>();
+
+    // Use this for initialization
+    void Start()
     {
         Chunk = GetComponent<Chunk>();
         RenderChunk();
-	}
-	
-	// Update is called once per frame
-	void Update ()
+    }
+
+    // Update is called once per frame
+    void Update ()
     {
 	
 	}
@@ -42,6 +167,7 @@ public class ChunkRender : MonoBehaviour
         if (!TypedBlocks.TryGetValue(voxel.BlockType, out result))
         {
             TypedBlocks[voxel.BlockType] = result = new MeshContext();
+            result.WorldPosition = transform.position;
         }
         return result;
     }
@@ -89,6 +215,11 @@ public class ChunkRender : MonoBehaviour
             }
         }
 
+        foreach (var quadPos in QuadPositions)
+        {
+            RenderQuad(quadPos.context, new Vector3(quadPos.x, quadPos.y, quadPos.z), DirectionToVector(quadPos.direction));
+        }
+
         foreach (var kvp in TypedBlocks)
         {
             RenderMeshContext(kvp.Key, kvp.Value);
@@ -102,6 +233,7 @@ public class ChunkRender : MonoBehaviour
         var meshObject = new GameObject();
         meshObject.name = blockTypeObject.BlockName;
         meshObject.transform.parent = transform;
+        meshObject.transform.localPosition = Vector3.zero;
 
         var meshFilter = meshObject.AddComponent<MeshFilter>();
         var meshCollider = meshObject.AddComponent<MeshCollider>();
@@ -127,20 +259,21 @@ public class ChunkRender : MonoBehaviour
 
     void RenderCube(Vector3 position, Voxel voxel, MeshContext context)
     {
-        RenderQuad(context, position, Vector3.down);
-        RenderQuad(context, position, Vector3.up);
+        RenderQuad2(context, voxel, position, Direction.XNeg);
+        RenderQuad2(context, voxel, position, Direction.XPos);
 
-        RenderQuad(context, position, Vector3.left);
-        RenderQuad(context, position, Vector3.right);
+        RenderQuad2(context, voxel, position, Direction.YNeg);
+        RenderQuad2(context, voxel, position, Direction.YPos);
 
-        RenderQuad(context, position, Vector3.forward);
-        RenderQuad(context, position, Vector3.back);
+        RenderQuad2(context, voxel, position, Direction.ZNeg);
+        RenderQuad2(context, voxel, position, Direction.ZPos);
     }
 
     void RenderRamp(Vector3 position, Voxel voxel, MeshContext context)
     {
-        var points = new List<Vector3>(GetQuadVertices(Vector3.forward));
-        points.AddRange(GetQuadVertices(Vector3.down));
+        RenderQuad2(context, voxel, position, Direction.YNeg);
+        RenderQuad2(context, voxel, position, Direction.ZPos);
+        var points = new List<Vector3>();
 
         // Ramp
         points.Add(FrontTop1);
@@ -190,9 +323,9 @@ public class ChunkRender : MonoBehaviour
     void RenderLargeCorner(Vector3 position, Voxel voxel, MeshContext context)
     {
         var points = new List<Vector3>();
-        points.AddRange(GetQuadVertices(Vector3.forward));
-        points.AddRange(GetQuadVertices(Vector3.right));
-        points.AddRange(GetQuadVertices(Vector3.down));
+        RenderQuad2(context, voxel, position, Direction.ZPos);
+        RenderQuad2(context, voxel, position, Direction.XPos);
+        RenderQuad2(context, voxel, position, Direction.YNeg);
 
         // Top
         points.Add(FrontTop1);
@@ -220,7 +353,7 @@ public class ChunkRender : MonoBehaviour
     void RenderMiterConvex(Vector3 position, Voxel voxel, MeshContext context)
     {
         var points = new List<Vector3>();
-        points.AddRange(GetQuadVertices(Vector3.down));
+        RenderQuad2(context, voxel, position, Direction.YNeg);
 
         points.Add(FrontBot2);
         points.Add(FrontTop2);
@@ -244,9 +377,9 @@ public class ChunkRender : MonoBehaviour
     void RenderMiterConcave(Vector3 position, Voxel voxel, MeshContext context)
     {
         var points = new List<Vector3>();
-        points.AddRange(GetQuadVertices(Vector3.down));
-        points.AddRange(GetQuadVertices(Vector3.forward));
-        points.AddRange(GetQuadVertices(Vector3.right));
+        RenderQuad2(context, voxel, position, Direction.YNeg);
+        RenderQuad2(context, voxel, position, Direction.ZPos);
+        RenderQuad2(context, voxel, position, Direction.XPos);
 
         // Back
         points.Add(BackBot1);
@@ -267,6 +400,62 @@ public class ChunkRender : MonoBehaviour
         points.Add(FrontTop2);
 
         AddPoints(position, points, voxel, context);
+    }
+
+    private static Direction TransformDirection(Direction input, Voxel voxel)
+    {
+        if (voxel.IsUpsideDown)
+        {
+            if (input == Direction.YPos)
+            {
+                return Direction.YNeg;
+            }
+            else if (input == Direction.YNeg)
+            {
+                return Direction.YPos;
+            }
+        }
+
+        if (input == Direction.YPos || input == Direction.YNeg)
+        {
+            return input;
+        }
+
+        var rotationIndex = 0;
+        switch (voxel.Rotation)
+        {
+            case Voxel.RotationType.East:
+                rotationIndex = 1;
+                break;
+            case Voxel.RotationType.South:
+                rotationIndex = 2;
+                break;
+            case Voxel.RotationType.West:
+                rotationIndex = 3;
+                break;
+        }
+
+        var directionIndex = 0;
+        switch (input)
+        {
+            case Direction.XPos:
+                directionIndex = 1;
+                break;
+            case Direction.ZNeg:
+                directionIndex = 2;
+                break;
+            case Direction.XNeg:
+                directionIndex = 3;
+                break;
+        }
+
+        var finalIndex = rotationIndex + directionIndex;
+        if (finalIndex >= 4)
+        {
+            finalIndex -= 4;
+        }
+
+        return CardinalDirections[finalIndex];
     }
 
     private static float GetRotationDegress(Voxel.RotationType rotation)
@@ -293,23 +482,40 @@ public class ChunkRender : MonoBehaviour
             {
                 var point = points[i];
                 var p2 = new Vector3(point.x, -point.y, point.z);
-                context.Verticies.Add(position + (rotation * p2));
+                context.AddVertex(position + (rotation * p2));
             }
         }
         else
         {
             foreach (var point in points)
             {
-                context.Verticies.Add(position + (rotation * point));
+                context.AddVertex(position + (rotation * point));
             }
         }
+    }
+
+    void RenderQuad2(MeshContext context, Voxel voxel, Vector3 position, Direction direction)
+    {
+        var transformedDirection = TransformDirection(direction, voxel);
+        var quadPos = new QuadPosition(position, context, transformedDirection);
+
+        var flippedDir = FlipDirection(transformedDirection);
+        var flippedPosition = MoveByDirection(position, transformedDirection);
+        var flippedQuad = new QuadPosition(flippedPosition, context, flippedDir);
+
+        if (QuadPositions.Contains(flippedQuad))
+        {
+            QuadPositions.Remove(flippedQuad);
+            return;
+        }
+        QuadPositions.Add(quadPos);
     }
 
     void RenderQuad(MeshContext context, Vector3 position, Vector3 normal)
     {
         foreach (var point in GetQuadVertices(normal))
         {
-            context.Verticies.Add(position + point);
+            context.AddVertex(position + point);
         }
     }
 
