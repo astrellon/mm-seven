@@ -11,6 +11,7 @@ public class VoxelTerrain : MonoBehaviour
 	// Use this for initialization
 	void Start ()
     {
+        /*
         for (var x = -16; x < 16; x++)
         for (var y = 0; y < 4; y++)
         for (var z = -16; z < 16; z++)
@@ -30,6 +31,7 @@ public class VoxelTerrain : MonoBehaviour
         {
             SetVoxel(9 + x, 8, 4 + z, new Voxel(Voxel.MeshShapeType.Cube, Voxel.RotationType.North, false, 0));
         }
+        */
     }
 
     public void SetVoxel(int x, int y, int z, Voxel voxel)
