@@ -5,10 +5,9 @@ using System.Collections.Generic;
 [ExecuteInEditMode]
 public class VoxelTerrain : MonoBehaviour
 {
-    //public List<Chunk> Chunks = new List<Chunk>();
     public List<BlockType> BlockTypes = new List<BlockType>();
 
-    private Dictionary<Vector3, Chunk> Chunks = new Dictionary<Vector3, Chunk>();
+    public Dictionary<Vector3, Chunk> Chunks = new Dictionary<Vector3, Chunk>();
 
 	// Use this for initialization
 	void Start ()

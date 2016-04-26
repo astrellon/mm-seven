@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Linq;
 
 [RequireComponent(typeof(VoxelTerrain))]
 [ExecuteInEditMode]
@@ -28,9 +29,14 @@ public class VoxelLoader : MonoBehaviour {
         terrain.RenderAll();
     }
 
+    public static string LevelPath(string path)
+    {
+        return System.IO.Path.Combine(@"Assets\Levels", path);
+    }
+
     public static void Load(VoxelTerrain terrain, string path)
     {
-        foreach (var line in System.IO.File.ReadAllLines(System.IO.Path.Combine(@"Assets\Levels", path)))
+        foreach (var line in System.IO.File.ReadAllLines(LevelPath(path)))
         {
             if (line.Length == 0 || line[0] == '#')
             {
@@ -51,11 +57,83 @@ public class VoxelLoader : MonoBehaviour {
         }
     }
 
-    public static void Save(VoxelTerrain terrain, string path)
+    public void Save()
     {
-
+        var terrain = GetComponent<VoxelTerrain>();
+        Save(terrain, FilePath);
     }
 
+    public static void Save(VoxelTerrain terrain, string path)
+    {
+        using (var output = new System.IO.StreamWriter(LevelPath(path), false, System.Text.Encoding.UTF8))
+        {
+            output.WriteLine("# Level terrain data for {0}", path);
+            output.WriteLine("# X, Y, Z, MeshShape, Rotation, IsUpsideDown, BlockType");
+            foreach (var chunk in terrain.Chunks.Values)
+            {
+                SaveChunk(chunk, output);
+            }
+        }
+    }
+
+    private static void SaveChunk(Chunk chunk, System.IO.StreamWriter output)
+    {
+        var i = 0;
+        for (var z = 0u; z < 16u; z++)
+        for (var y = 0u; y < 16u; y++)
+        for (var x = 0u; x < 16u; x++, i++)
+        {
+            var voxel = chunk.Voxels[i];
+            if (voxel.MeshShape == Voxel.MeshShapeType.None)
+            {
+                continue;
+            }
+
+            output.WriteLine(Join(",", x, y, z, 
+                ToMeshShapeString(voxel.MeshShape), 
+                ToRotationString(voxel.Rotation), 
+                voxel.IsUpsideDown ? "true" : "false", 
+                voxel.BlockType));
+        }
+    }
+
+    private static string Join(string separator, params object[] inputs)
+    {
+        var result = new System.Text.StringBuilder();
+        var first = true;
+        foreach (var o in inputs)
+        {
+            if (!first)
+            {
+                result.Append(separator);
+            }
+            first = false;
+            result.Append(o);
+        }
+        return result.ToString();
+    }
+
+    private static string ToMeshShapeString(Voxel.MeshShapeType input)
+    {
+        switch (input)
+        {
+            case Voxel.MeshShapeType.None:
+                return "none";
+            case Voxel.MeshShapeType.Cube:
+                return "cube";
+            case Voxel.MeshShapeType.Ramp:
+                return "ramp";
+            case Voxel.MeshShapeType.SmallCorner:
+                return "small-corner";
+            case Voxel.MeshShapeType.LargeCorner:
+                return "large-corner";
+            case Voxel.MeshShapeType.MiterConvex:
+                return "miter-convex";
+            case Voxel.MeshShapeType.MiterConcave:
+                return "miter-concave";
+        }
+        throw new System.ArgumentException("Unknown mesh shape type: " + input);
+    }
     private static Voxel.MeshShapeType ParseMeshShape(string input)
     {
         switch (input)
@@ -78,6 +156,21 @@ public class VoxelLoader : MonoBehaviour {
         throw new System.ArgumentException("Unknown mesh shape type: " + input);
     }
 
+    private static string ToRotationString(Voxel.RotationType input)
+    {
+        switch (input)
+        {
+            case Voxel.RotationType.North:
+                return "north";
+            case Voxel.RotationType.East:
+                return "east";
+            case Voxel.RotationType.South:
+                return "south";
+            case Voxel.RotationType.West:
+                return "west";
+        }
+        throw new System.ArgumentException("Unknown rotation type: " + input);
+    }
     private static Voxel.RotationType ParseRotation(string input)
     {
         switch (input)

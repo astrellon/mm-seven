@@ -23,10 +23,16 @@ public class VoxelLoaderEditor : Editor {
         var loader = (VoxelLoader)target;
 
         loader.FilePath = EditorGUILayout.TextField("FilePath", loader.FilePath);
+        GUILayout.BeginHorizontal();
         if (GUILayout.Button("Load"))
         {
             loader.Load();
         }
+        if (GUILayout.Button("Save"))
+        {
+            loader.Save();
+        }
+        GUILayout.EndHorizontal();
 
         serializedObject.ApplyModifiedProperties();
     }

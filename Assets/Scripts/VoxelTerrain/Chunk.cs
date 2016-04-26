@@ -23,4 +23,13 @@ public class Chunk : MonoBehaviour
     {
         Voxels[(z << 8) + (y << 4) + x] = voxel;
     }
+    public bool GetVoxel(uint x, uint y, uint z, ref Voxel voxel)
+    {
+        if (x >= 16 || y >= 16 || z >= 16)
+        {
+            return false;
+        }
+        voxel = Voxels[(z << 8) + (y << 4) + x];
+        return true;
+    }
 }
