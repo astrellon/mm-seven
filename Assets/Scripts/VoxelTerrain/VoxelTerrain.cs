@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
+using System.Linq;
 using System.Collections.Generic;
 
+[ExecuteInEditMode]
 public class VoxelTerrain : MonoBehaviour
 {
     //public List<Chunk> Chunks = new List<Chunk>();
@@ -11,27 +13,7 @@ public class VoxelTerrain : MonoBehaviour
 	// Use this for initialization
 	void Start ()
     {
-        /*
-        for (var x = -16; x < 16; x++)
-        for (var y = 0; y < 4; y++)
-        for (var z = -16; z < 16; z++)
-        {
-            SetVoxel(x, y, z, new Voxel(Voxel.MeshShapeType.Cube, Voxel.RotationType.East, false, 0));
-        }
 
-        for (var r = 0; r < 5; r++)
-        for (var w = 0; w < 4; w++)
-        {
-            SetVoxel(4 + r, 4 + r, 4 + w, new Voxel(Voxel.MeshShapeType.Ramp, Voxel.RotationType.East, false, 0));
-            SetVoxel(4 + r, 3 + r, 4 + w, new Voxel(Voxel.MeshShapeType.Cube, Voxel.RotationType.East, false, 0));
-        }
-
-        for (var x = 0; x < 4; x++)
-        for (var z = 0; z < 4; z++)
-        {
-            SetVoxel(9 + x, 8, 4 + z, new Voxel(Voxel.MeshShapeType.Cube, Voxel.RotationType.North, false, 0));
-        }
-        */
     }
 
     public void SetVoxel(int x, int y, int z, Voxel voxel)
@@ -51,6 +33,35 @@ public class VoxelTerrain : MonoBehaviour
 	
 	}
 
+    public void Clear()
+    {
+        var foundChunks = GetComponentsInChildren<Chunk>();
+        foreach (var chunk in foundChunks)
+        {
+            var chunkRender = chunk.GetComponent<ChunkRender>();
+            chunkRender.Clear();
+
+            DestroyImmediate(chunk.gameObject);
+        }
+        Chunks.Clear();
+    }
+
+    public void RenderAll()
+    {
+        var foundChunks = GetComponentsInChildren<Chunk>();
+        foreach (var chunk in foundChunks)
+        {
+            var chunkRender = chunk.GetComponent<ChunkRender>();
+            if (chunkRender == null)
+            {
+                chunkRender = chunk.gameObject.AddComponent<ChunkRender>();
+            }
+            chunkRender.RenderChunk();
+
+            Chunks[chunk.ChunkPosition] = chunk;
+        }
+    }
+
     Chunk GetChunk(int x, int y, int z)
     {
         var worldX = Mathf.Floor(x / 16f);
@@ -65,6 +76,8 @@ public class VoxelTerrain : MonoBehaviour
             chunkObj.transform.parent = transform;
             chunkObj.name = "chunk_" + worldX + "_" + worldY + "_" + worldZ;
             Chunks[pos] = chunk = chunkObj.AddComponent<Chunk>();
+
+            chunk.ChunkPosition = pos;
             chunk.Parent = this;
             chunk.transform.position = pos;
 

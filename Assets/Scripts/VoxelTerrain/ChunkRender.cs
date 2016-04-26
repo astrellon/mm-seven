@@ -1,11 +1,14 @@
 ﻿using UnityEngine;
 using System;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 
 [RequireComponent(typeof(Chunk))]
+[ExecuteInEditMode]
 public class ChunkRender : MonoBehaviour
 {
+    #region Helpers
     private class MeshContext
     {
         public List<Vector3> Verticies = new List<Vector3>();
@@ -32,7 +35,7 @@ public class ChunkRender : MonoBehaviour
     private static Vector3 BackBot2 = new Vector3(0.5f, -0.5f, -0.5f);
 
     [System.Flags]
-    public enum Direction : byte
+    private enum Direction : byte
     {
         XPos = 0x00,
         XNeg = 0x01,
@@ -61,9 +64,9 @@ public class ChunkRender : MonoBehaviour
         return Vector3.zero;
     }
     private static Direction[] CardinalDirections = new[] { Direction.ZPos, Direction.XPos, Direction.ZNeg, Direction.XNeg };
+    #endregion 
 
     public Chunk Chunk { get; private set; }
-
     private Dictionary<ushort, MeshContext> TypedBlocks = new Dictionary<ushort, MeshContext>();
 
     private struct QuadPosition
@@ -151,8 +154,17 @@ public class ChunkRender : MonoBehaviour
     // Use this for initialization
     void Start()
     {
-        Chunk = GetComponent<Chunk>();
-        RenderChunk();
+        //Chunk = GetComponent<Chunk>();
+        //RenderChunk();
+    }
+
+    public void Clear()
+    {
+        var children = transform.Cast<Transform>().ToList();
+        foreach (Transform trans in children)
+        {
+            DestroyImmediate(trans.gameObject);
+        }
     }
 
     // Update is called once per frame
@@ -174,6 +186,8 @@ public class ChunkRender : MonoBehaviour
 
     public void RenderChunk()
     {
+        Chunk = GetComponent<Chunk>();
+
         for (int z = 0, i = 0; z < 16; z++)
         {
             for (var y = 0; y < 16; y++)

@@ -5,6 +5,7 @@ public class Chunk : MonoBehaviour
 {
     public const int TotalVoxels = 16 * 16 * 16;
     public readonly Voxel[] Voxels = new Voxel[TotalVoxels];
+    public Vector3 ChunkPosition = Vector3.zero;
 
     public VoxelTerrain Parent;
 

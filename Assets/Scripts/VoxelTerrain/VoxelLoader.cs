@@ -2,6 +2,7 @@
 using System.Collections;
 
 [RequireComponent(typeof(VoxelTerrain))]
+[ExecuteInEditMode]
 public class VoxelLoader : MonoBehaviour {
 
     public string FilePath;
@@ -9,8 +10,8 @@ public class VoxelLoader : MonoBehaviour {
 	// Use this for initialization
 	void Start ()
     {
-        var terrain = GetComponent<VoxelTerrain>();
-        Load(terrain, FilePath);
+        //var terrain = GetComponent<VoxelTerrain>();
+        //Load(terrain, FilePath);
 	}
 	
 	// Update is called once per frame
@@ -18,6 +19,14 @@ public class VoxelLoader : MonoBehaviour {
     {
 	
 	}
+
+    public void Load()
+    {
+        var terrain = GetComponent<VoxelTerrain>();
+        terrain.Clear();
+        Load(terrain, FilePath);
+        terrain.RenderAll();
+    }
 
     public static void Load(VoxelTerrain terrain, string path)
     {
@@ -40,6 +49,11 @@ public class VoxelLoader : MonoBehaviour {
 
             terrain.SetVoxel(x, y, z, new Voxel(meshShape, rotation, isUpsideDown, blockType));
         }
+    }
+
+    public static void Save(VoxelTerrain terrain, string path)
+    {
+
     }
 
     private static Voxel.MeshShapeType ParseMeshShape(string input)
