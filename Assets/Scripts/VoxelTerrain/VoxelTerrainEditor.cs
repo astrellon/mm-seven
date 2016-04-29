@@ -36,10 +36,10 @@ public class VoxelTerrainEditor : Editor
         if (planeNormals == null)
         {
             planeNormals = new Dictionary<PlaneAlignment, Vector3> {
-                { PlaneAlignment.XY, Vector3.forward },
-                { PlaneAlignment.YZ, Vector3.left },
-                { PlaneAlignment.XZ, Vector3.up },
-                { PlaneAlignment.X, Vector3.up },
+                { PlaneAlignment.XY, Vector3.back },
+                { PlaneAlignment.YZ, Vector3.right },
+                { PlaneAlignment.XZ, Vector3.down },
+                { PlaneAlignment.X, Vector3.down },
                 { PlaneAlignment.Y, Vector3.left },
                 { PlaneAlignment.Z, Vector3.up },
             };
@@ -70,6 +70,11 @@ public class VoxelTerrainEditor : Editor
                 alignment = kvp.Key;
                 createPlane = true;
             }
+        }
+
+        if (GUILayout.Button("Clear terrain"))
+        {
+            terrain.Clear();
         }
 
         serializedObject.ApplyModifiedProperties();
@@ -120,17 +125,26 @@ public class VoxelTerrainEditor : Editor
 
         CreatePlanes(terrain);
 
-        if (e.type == EventType.MouseDown)
+        if (e.type == EventType.MouseDown || e.type == EventType.MouseDrag)
         {
             GUIUtility.hotControl = controlId;
 
-            //layerTarget.AddTile(tileCursorPosition, 0);
+            var x = (int)tileCursorPosition.x;
+            var y = (int)tileCursorPosition.y;
+            var z = (int)tileCursorPosition.z;
+            terrain.SetVoxel(x, y, z, new Voxel(Voxel.MeshShapeType.Cube, 0));
+            //terrain.RenderAll(true);
+            //SceneView.RepaintAll();
 
             EditorUtility.SetDirty(terrain);
 
-            e.Use();
+            if (e.type == EventType.MouseDown)
+            {
+                e.Use();
+            }
         }
-        else if (e.type == EventType.MouseMove)
+
+        if (e.type == EventType.MouseMove || e.type == EventType.MouseDrag)
         {
             float rayDistance;
             var ray = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
@@ -172,5 +186,11 @@ public class VoxelTerrainEditor : Editor
         Handles.DrawLine(tileCursorPosition + Vector3.up * 100, tileCursorPosition + Vector3.down * 100);
         Handles.color = zColour;
         Handles.DrawLine(tileCursorPosition + Vector3.forward * 100, tileCursorPosition + Vector3.back * 100);
+
+        var screenPos = Camera.current.WorldToScreenPoint(tileCursorPosition);
+
+        Handles.BeginGUI();
+        GUI.Label(new Rect(screenPos.x, Screen.height - screenPos.y, 100, 40), string.Format("({0}, {1}, {2})", tileCursorPosition.x, tileCursorPosition.y, tileCursorPosition.z));
+        Handles.EndGUI();
     }
 }

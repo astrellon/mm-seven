@@ -19,9 +19,9 @@ public class VoxelTerrain : MonoBehaviour
     {
         var chunk = GetChunk(x, y, z);
 
-        var localX = (byte)Mathf.Abs(x % 16);
-        var localY = (byte)Mathf.Abs(y % 16);
-        var localZ = (byte)Mathf.Abs(z % 16);
+        var localX = (byte)(x - chunk.ChunkPosition.x);
+        var localY = (byte)(y - chunk.ChunkPosition.y);
+        var localZ = (byte)(z - chunk.ChunkPosition.z);
 
         chunk.SetVoxel(localX, localY, localZ, voxel);
     }
@@ -45,7 +45,7 @@ public class VoxelTerrain : MonoBehaviour
         Chunks.Clear();
     }
 
-    public void RenderAll()
+    public void RenderAll(bool onlyDirty = false)
     {
         var foundChunks = GetComponentsInChildren<Chunk>();
         foreach (var chunk in foundChunks)
@@ -55,7 +55,7 @@ public class VoxelTerrain : MonoBehaviour
             {
                 chunkRender = chunk.gameObject.AddComponent<ChunkRender>();
             }
-            chunkRender.RenderChunk();
+            chunkRender.RenderChunk(onlyDirty);
 
             Chunks[chunk.ChunkPosition] = chunk;
         }
@@ -63,11 +63,11 @@ public class VoxelTerrain : MonoBehaviour
 
     Chunk GetChunk(int x, int y, int z)
     {
-        var worldX = Mathf.Floor(x / 16f);
-        var worldY = Mathf.Floor(y / 16f);
-        var worldZ = Mathf.Floor(z / 16f);
+        var worldX = Mathf.Floor(x / 8f);
+        var worldY = Mathf.Floor(y / 8f);
+        var worldZ = Mathf.Floor(z / 8f);
 
-        var pos = new Vector3(worldX * 16f, worldY * 16f, worldZ * 16);
+        var pos = new Vector3(worldX * 8f, worldY * 8f, worldZ * 8f);
         Chunk chunk;
         if (!Chunks.TryGetValue(pos, out chunk))
         {

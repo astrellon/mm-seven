@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using System;
 using System.Linq;
-using System.Collections;
 using System.Collections.Generic;
 
 [RequireComponent(typeof(Chunk))]
@@ -12,10 +11,12 @@ public class ChunkRender : MonoBehaviour
     private class MeshContext
     {
         public List<Vector3> Verticies = new List<Vector3>();
+        public List<int> Triangles = new List<int>();
         public Vector3 WorldPosition = Vector3.zero;
 
         public void AddVertex(Vector3 vertex)
         {
+            Triangles.Add(Verticies.Count);
             var worldVertex = vertex + WorldPosition;
             var dx = (Mathf.PerlinNoise(worldVertex.x, worldVertex.y) - 0.5f) * 0.3f;
             var dy = (Mathf.PerlinNoise(worldVertex.y, worldVertex.z) - 0.5f) * 0.3f;
@@ -109,53 +110,52 @@ public class ChunkRender : MonoBehaviour
             this.direction = direction;
         }
     }
-        private static Direction FlipDirection(Direction input)
+    private static Direction FlipDirection(Direction input)
+    {
+        switch (input)
         {
-            switch (input)
-            {
-                case Direction.XNeg:
-                    return Direction.XPos;
-                case Direction.XPos:
-                    return Direction.XNeg;
-                case Direction.YNeg:
-                    return Direction.YPos;
-                case Direction.YPos:
-                    return Direction.YNeg;
-                case Direction.ZNeg:
-                    return Direction.ZPos;
-                case Direction.ZPos:
-                    return Direction.ZNeg;
-            }
-            return Direction.XNeg;
+            case Direction.XNeg:
+                return Direction.XPos;
+            case Direction.XPos:
+                return Direction.XNeg;
+            case Direction.YNeg:
+                return Direction.YPos;
+            case Direction.YPos:
+                return Direction.YNeg;
+            case Direction.ZNeg:
+                return Direction.ZPos;
+            case Direction.ZPos:
+                return Direction.ZNeg;
         }
+        return Direction.XNeg;
+    }
 
-        private static Vector3 MoveByDirection(Vector3 position, Direction direction)
+    private static Vector3 MoveByDirection(Vector3 position, Direction direction)
+    {
+        switch (direction)
         {
-            switch (direction)
-            {
-                case Direction.XNeg:
-                    return new Vector3(position.x - 1, position.y, position.z);
-                case Direction.XPos:
-                    return new Vector3(position.x + 1, position.y, position.z);
-                case Direction.YNeg:
-                    return new Vector3(position.x, position.y - 1, position.z);
-                case Direction.YPos:
-                    return new Vector3(position.x, position.y + 1, position.z);
-                case Direction.ZNeg:
-                    return new Vector3(position.x, position.y, position.z - 1);
-                case Direction.ZPos:
-                    return new Vector3(position.x, position.y, position.z + 1);
-            }
-            return Vector3.zero;
+            case Direction.XNeg:
+                return new Vector3(position.x - 1, position.y, position.z);
+            case Direction.XPos:
+                return new Vector3(position.x + 1, position.y, position.z);
+            case Direction.YNeg:
+                return new Vector3(position.x, position.y - 1, position.z);
+            case Direction.YPos:
+                return new Vector3(position.x, position.y + 1, position.z);
+            case Direction.ZNeg:
+                return new Vector3(position.x, position.y, position.z - 1);
+            case Direction.ZPos:
+                return new Vector3(position.x, position.y, position.z + 1);
         }
+        return Vector3.zero;
+    }
 
     private HashSet<QuadPosition> QuadPositions = new HashSet<QuadPosition>();
 
     // Use this for initialization
     void Start()
     {
-        //Chunk = GetComponent<Chunk>();
-        //RenderChunk();
+
     }
 
     public void Clear()
@@ -165,12 +165,19 @@ public class ChunkRender : MonoBehaviour
         {
             DestroyImmediate(trans.gameObject);
         }
+
+        TypedBlocks = new Dictionary<ushort, MeshContext>();
+        QuadPositions = new HashSet<QuadPosition>();
     }
 
     // Update is called once per frame
     void Update ()
     {
-	
+        Chunk = GetComponent<Chunk>();
+        if (Chunk.IsDirty)
+        {
+            RenderChunk(true);
+        }
 	}
 
     private MeshContext GetMeshContext(Voxel voxel)
@@ -184,48 +191,53 @@ public class ChunkRender : MonoBehaviour
         return result;
     }
 
-    public void RenderChunk()
+    public void RenderChunk(bool onlyDirty = false)
     {
         Chunk = GetComponent<Chunk>();
-
-        for (int z = 0, i = 0; z < 16; z++)
+        if (onlyDirty)
         {
-            for (var y = 0; y < 16; y++)
+            if (!Chunk.IsDirty)
             {
-                for (var x = 0; x < 16; x++, i++)
-                {
-                    var voxel = Chunk.Voxels[i];
-                    var shape = voxel.MeshShape; 
-                    if (shape == Voxel.MeshShapeType.None)
-                    {
-                        continue;
-                    }
+                return;
+            }
+            Clear();
+        }
 
-                    var context = GetMeshContext(voxel);
-                    var position = new Vector3(x, y, z);
+        var i = 0;
+        for (var z = 0; z < 8; z++)
+        for (var y = 0; y < 8; y++)
+        for (var x = 0; x < 8; x++, i++)
+        { 
+            var voxel = Chunk.Voxels[i];
+            var shape = voxel.MeshShape; 
+            if (shape == Voxel.MeshShapeType.None)
+            {
+                continue;
+            }
 
-                    switch (shape)
-                    {
-                        case Voxel.MeshShapeType.Cube:
-                            RenderCube(position, voxel, context);
-                            break;
-                        case Voxel.MeshShapeType.Ramp:
-                            RenderRamp(position, voxel, context);
-                            break;
-                        case Voxel.MeshShapeType.SmallCorner:
-                            RenderSmallCorner(position, voxel, context);
-                            break;
-                        case Voxel.MeshShapeType.LargeCorner:
-                            RenderLargeCorner(position, voxel, context);
-                            break;
-                        case Voxel.MeshShapeType.MiterConvex:
-                            RenderMiterConvex(position, voxel, context);
-                            break;
-                        case Voxel.MeshShapeType.MiterConcave:
-                            RenderMiterConcave(position, voxel, context);
-                            break;
-                    }
-                }
+            var context = GetMeshContext(voxel);
+            var position = new Vector3(x, y, z);
+
+            switch (shape)
+            {
+                case Voxel.MeshShapeType.Cube:
+                    RenderCube(position, voxel, context);
+                    break;
+                case Voxel.MeshShapeType.Ramp:
+                    RenderRamp(position, voxel, context);
+                    break;
+                case Voxel.MeshShapeType.SmallCorner:
+                    RenderSmallCorner(position, voxel, context);
+                    break;
+                case Voxel.MeshShapeType.LargeCorner:
+                    RenderLargeCorner(position, voxel, context);
+                    break;
+                case Voxel.MeshShapeType.MiterConvex:
+                    RenderMiterConvex(position, voxel, context);
+                    break;
+                case Voxel.MeshShapeType.MiterConcave:
+                    RenderMiterConcave(position, voxel, context);
+                    break;
             }
         }
 
@@ -238,6 +250,8 @@ public class ChunkRender : MonoBehaviour
         {
             RenderMeshContext(kvp.Key, kvp.Value);
         }
+
+        Chunk.IsDirty = false;
     }
 
     void RenderMeshContext(ushort blockType, MeshContext context)
@@ -250,19 +264,15 @@ public class ChunkRender : MonoBehaviour
         meshObject.transform.localPosition = Vector3.zero;
 
         var meshFilter = meshObject.AddComponent<MeshFilter>();
+        var mesh = new Mesh();
+        meshFilter.mesh = mesh;
         var meshCollider = meshObject.AddComponent<MeshCollider>();
         var meshRenderer = meshObject.AddComponent<MeshRenderer>();
 
-        var mesh = new Mesh();
-        meshFilter.mesh = mesh;
+        var chunkPosition = GetComponent<Chunk>().ChunkPosition;
 
         mesh.vertices = context.Verticies.ToArray();
-        var triangles = new int[context.Verticies.Count];
-        for (var i = 0; i < context.Verticies.Count; i++)
-        {
-            triangles[i] = i;
-        }
-        mesh.triangles = triangles;
+        mesh.triangles = context.Triangles.ToArray();
         mesh.Optimize();
         mesh.RecalculateNormals();
 

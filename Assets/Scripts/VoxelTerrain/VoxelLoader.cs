@@ -79,9 +79,9 @@ public class VoxelLoader : MonoBehaviour {
     private static void SaveChunk(Chunk chunk, System.IO.StreamWriter output)
     {
         var i = 0;
-        for (var z = 0u; z < 16u; z++)
-        for (var y = 0u; y < 16u; y++)
-        for (var x = 0u; x < 16u; x++, i++)
+        for (var z = 0u; z < 8u; z++)
+        for (var y = 0u; y < 8u; y++)
+        for (var x = 0u; x < 8u; x++, i++)
         {
             var voxel = chunk.Voxels[i];
             if (voxel.MeshShape == Voxel.MeshShapeType.None)
@@ -89,7 +89,11 @@ public class VoxelLoader : MonoBehaviour {
                 continue;
             }
 
-            output.WriteLine(Join(",", x, y, z, 
+            var worldX = x + (int)chunk.ChunkPosition.x;
+            var worldY = y + (int)chunk.ChunkPosition.y;
+            var worldZ = z + (int)chunk.ChunkPosition.z;
+
+            output.WriteLine(Join(",", worldX, worldY, worldZ, 
                 ToMeshShapeString(voxel.MeshShape), 
                 ToRotationString(voxel.Rotation), 
                 voxel.IsUpsideDown ? "true" : "false", 
