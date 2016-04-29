@@ -26,6 +26,8 @@ public struct Voxel
     public readonly byte ShapeData;
     public readonly ushort BlockType;
 
+    public static readonly Voxel Empty = new Voxel(MeshShapeType.None, 0);
+
     public Voxel(MeshShapeType meshShape, RotationType rotation, bool upsideDown, ushort blockType)
     {
         ShapeData = CalcShape(meshShape, rotation, upsideDown);
@@ -35,6 +37,20 @@ public struct Voxel
     {
         ShapeData = CalcShape(meshShape, RotationType.North, false);
         BlockType = blockType;
+    }
+    private Voxel(byte shapeData, ushort blockType)
+    {
+        ShapeData = shapeData;
+        BlockType = blockType;
+    }
+
+    public Voxel ChangeShape(MeshShapeType meshShape, RotationType rotation, bool upsideDown)
+    {
+        return new Voxel(meshShape, rotation, upsideDown, BlockType);
+    }
+    public Voxel ChangeBlockType(ushort blockType)
+    {
+        return new Voxel(ShapeData, blockType);
     }
 
     public MeshShapeType MeshShape

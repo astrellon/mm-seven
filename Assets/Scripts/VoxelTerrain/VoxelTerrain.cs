@@ -25,6 +25,18 @@ public class VoxelTerrain : MonoBehaviour
 
         chunk.SetVoxel(localX, localY, localZ, voxel);
     }
+    public Voxel GetVoxel(int x, int y, int z)
+    {
+        var chunk = GetChunk(x, y, z);
+
+        var localX = (byte)(x - chunk.ChunkPosition.x);
+        var localY = (byte)(y - chunk.ChunkPosition.y);
+        var localZ = (byte)(z - chunk.ChunkPosition.z);
+
+        Voxel result = Voxel.Empty;
+        chunk.GetVoxel(localX, localY, localZ, ref result);
+        return result;
+    }
 	
 	// Update is called once per frame
 	void Update ()

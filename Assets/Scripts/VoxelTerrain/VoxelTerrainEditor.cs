@@ -46,6 +46,8 @@ public class VoxelTerrainEditor : Editor
     private Voxel.MeshShapeType selectedMeshShape = Voxel.MeshShapeType.Cube;
     private Voxel.RotationType selectedRotation = Voxel.RotationType.North;
     private bool selectedUpsideDown = false;
+    private bool paintShape = false;
+    private bool paintBlockType = false;
 
     private PlaneAlignment alignment = PlaneAlignment.XZ;
 
@@ -111,21 +113,31 @@ public class VoxelTerrainEditor : Editor
 
         EditorGUILayout.LabelField("Available block types");
         ushort blockTypeCount = 0;
+        if (GUILayout.Toggle(!paintBlockType, "Don't paint block", "Button"))
+        {
+            paintBlockType = false;
+        }
         foreach (var blockType in terrain.BlockTypes)
         {
-            if (GUILayout.Toggle(selectedBlockType == blockTypeCount, blockType.BlockName, "Button"))
+            if (GUILayout.Toggle(paintBlockType && selectedBlockType == blockTypeCount, blockType.BlockName, "Button"))
             {
                 selectedBlockType = blockTypeCount;
+                paintBlockType = true;
             }
             blockTypeCount++;
         }
 
         EditorGUILayout.LabelField("Mesh shape type");
+        if (GUILayout.Toggle(!paintShape, "Don't paint shape", "Button"))
+        {
+            paintShape = false;
+        }
         foreach (var meshShape in meshShapeTypes)
         {
-            if (GUILayout.Toggle(selectedMeshShape == meshShape, meshShape.ToString(), "Button"))
+            if (GUILayout.Toggle(paintShape && selectedMeshShape == meshShape, meshShape.ToString(), "Button"))
             {
                 selectedMeshShape = meshShape;
+                paintShape = true;
             }
         }
 
@@ -223,16 +235,38 @@ public class VoxelTerrainEditor : Editor
 
         CreatePlanes(terrain);
 
-        if (e.type == EventType.MouseDown || e.type == EventType.MouseDrag)
+        if ((e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && e.button == 0)
         {
-            GUIUtility.hotControl = controlId;
+            if (paintBlockType || paintShape)
+            {
+                GUIUtility.hotControl = controlId;
 
-            var x = (int)tileCursorPosition.x;
-            var y = (int)tileCursorPosition.y;
-            var z = (int)tileCursorPosition.z;
-            terrain.SetVoxel(x, y, z, new Voxel(selectedMeshShape, selectedRotation, selectedUpsideDown, selectedBlockType));
+                var x = (int)tileCursorPosition.x;
+                var y = (int)tileCursorPosition.y;
+                var z = (int)tileCursorPosition.z;
+                if (!paintBlockType && paintShape)
+                {
+                    var currentVoxel = terrain.GetVoxel(x, y, z);
+                    if (currentVoxel.MeshShape != Voxel.MeshShapeType.None)
+                    {
+                        terrain.SetVoxel(x, y, z, currentVoxel.ChangeShape(selectedMeshShape, selectedRotation, selectedUpsideDown));
+                    }
+                }
+                else if (paintBlockType && !paintShape)
+                {
+                    var currentVoxel = terrain.GetVoxel(x, y, z);
+                    if (currentVoxel.MeshShape != Voxel.MeshShapeType.None)
+                    {
+                        terrain.SetVoxel(x, y, z, currentVoxel.ChangeBlockType(selectedBlockType));
+                    }
+                }
+                else
+                {
+                    terrain.SetVoxel(x, y, z, new Voxel(selectedMeshShape, selectedRotation, selectedUpsideDown, selectedBlockType));
+                }
 
-            EditorUtility.SetDirty(terrain);
+                EditorUtility.SetDirty(terrain);
+            }
 
             if (e.type == EventType.MouseDown)
             {
