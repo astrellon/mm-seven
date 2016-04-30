@@ -13,6 +13,7 @@ public class VoxelTerrainEditor : Editor
 
     private Vector3 cursorPosition = Vector3.zero;
     private Vector3 tileCursorPosition = Vector3.zero;
+    private Vector3? mouseDownTileCursorPosition = Vector3.zero;
     private Plane plane = new Plane();
     private Dictionary<PlaneAlignment, Vector3> planeNormals = 
         new Dictionary<PlaneAlignment, Vector3> {
@@ -24,7 +25,7 @@ public class VoxelTerrainEditor : Editor
             { PlaneAlignment.Z, Vector3.up },
         };
 
-    private List<Voxel.MeshShapeType> meshShapeTypes = new List<Voxel.MeshShapeType> {
+    private Voxel.MeshShapeType[] meshShapeTypes = new [] {
         Voxel.MeshShapeType.None,
         Voxel.MeshShapeType.Cube,
         Voxel.MeshShapeType.Ramp,
@@ -34,12 +35,19 @@ public class VoxelTerrainEditor : Editor
         Voxel.MeshShapeType.MiterConcave,
     };
 
-    private List<Voxel.RotationType> rotationTypes = new List<Voxel.RotationType> {
+    private Voxel.RotationType[] rotationTypes = new [] {
         Voxel.RotationType.North,
         Voxel.RotationType.East,
         Voxel.RotationType.South,
         Voxel.RotationType.West,
     };
+
+    private enum PaintModeType
+    {
+        Single, Rectangle
+    }
+    private PaintModeType paintMode = PaintModeType.Single;
+    private PaintModeType[] paintModes = new[] { PaintModeType.Single, PaintModeType.Rectangle };
 
     private bool createPlane = true;
     private ushort selectedBlockType = 0;
@@ -111,6 +119,17 @@ public class VoxelTerrainEditor : Editor
         }
         GUILayout.EndHorizontal();
 
+        EditorGUILayout.LabelField("Paint mode");
+        GUILayout.BeginHorizontal();
+        foreach (var mode in paintModes)
+        {
+            if (GUILayout.Toggle(paintMode == mode, mode.ToString(), "Button"))
+            {
+                paintMode = mode;
+            }
+        }
+        GUILayout.EndHorizontal();
+
         EditorGUILayout.LabelField("Available block types");
         ushort blockTypeCount = 0;
         if (GUILayout.Toggle(!paintBlockType, "Don't paint block", "Button"))
@@ -142,6 +161,7 @@ public class VoxelTerrainEditor : Editor
         }
 
         EditorGUILayout.LabelField("Rotation direction");
+        GUILayout.BeginHorizontal();
         foreach (var rotation in rotationTypes)
         {
             if (GUILayout.Toggle(selectedRotation == rotation, rotation.ToString(), "Button"))
@@ -149,6 +169,7 @@ public class VoxelTerrainEditor : Editor
                 selectedRotation = rotation;
             }
         }
+        GUILayout.EndHorizontal();
 
         EditorGUILayout.LabelField("Delete all terrain!?");
         if (GUILayout.Button("Clear terrain"))
@@ -225,6 +246,18 @@ public class VoxelTerrainEditor : Editor
                 }
             }
 
+            if (e.keyCode == KeyCode.Space)
+            {
+                useEvent = true;
+                var ray = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
+                RaycastHit rayHit;
+                if (Physics.Raycast(ray, out rayHit))
+                {
+                    var cursorPosition = rayHit.point - rayHit.normal * 0.5f;
+                    tileCursorPosition = new Vector3(Mathf.Round(cursorPosition.x), Mathf.Round(cursorPosition.y), Mathf.Round(cursorPosition.z));
+                }
+            }
+
             if (useEvent)
             {
                 GUIUtility.hotControl = controlId;
@@ -244,25 +277,14 @@ public class VoxelTerrainEditor : Editor
                 var x = (int)tileCursorPosition.x;
                 var y = (int)tileCursorPosition.y;
                 var z = (int)tileCursorPosition.z;
-                if (!paintBlockType && paintShape)
+
+                if (paintMode == PaintModeType.Single)
                 {
-                    var currentVoxel = terrain.GetVoxel(x, y, z);
-                    if (currentVoxel.MeshShape != Voxel.MeshShapeType.None)
-                    {
-                        terrain.SetVoxel(x, y, z, currentVoxel.ChangeShape(selectedMeshShape, selectedRotation, selectedUpsideDown));
-                    }
+                    PaintAtPoint(terrain, x, y, z);
                 }
-                else if (paintBlockType && !paintShape)
+                else if (paintMode == PaintModeType.Rectangle && e.type == EventType.MouseDown)
                 {
-                    var currentVoxel = terrain.GetVoxel(x, y, z);
-                    if (currentVoxel.MeshShape != Voxel.MeshShapeType.None)
-                    {
-                        terrain.SetVoxel(x, y, z, currentVoxel.ChangeBlockType(selectedBlockType));
-                    }
-                }
-                else
-                {
-                    terrain.SetVoxel(x, y, z, new Voxel(selectedMeshShape, selectedRotation, selectedUpsideDown, selectedBlockType));
+                    mouseDownTileCursorPosition = tileCursorPosition;
                 }
 
                 EditorUtility.SetDirty(terrain);
@@ -271,6 +293,33 @@ public class VoxelTerrainEditor : Editor
             if (e.type == EventType.MouseDown)
             {
                 e.Use();
+            }
+        }
+
+        if (e.type == EventType.MouseUp && e.button == 0)
+        {
+            if (mouseDownTileCursorPosition.HasValue && paintMode == PaintModeType.Rectangle)
+            {
+                var startX = (int)Mathf.Min(tileCursorPosition.x, mouseDownTileCursorPosition.Value.x);
+                var startY = (int)Mathf.Min(tileCursorPosition.y, mouseDownTileCursorPosition.Value.y);
+                var startZ = (int)Mathf.Min(tileCursorPosition.z, mouseDownTileCursorPosition.Value.z);
+
+                var endX = (int)Mathf.Max(tileCursorPosition.x, mouseDownTileCursorPosition.Value.x);
+                var endY = (int)Mathf.Max(tileCursorPosition.y, mouseDownTileCursorPosition.Value.y);
+                var endZ = (int)Mathf.Max(tileCursorPosition.z, mouseDownTileCursorPosition.Value.z);
+                for (var z = startZ; z <= endZ; z++)
+                {
+                    for (var y = startY; y <= endY; y++)
+                    {
+                        for (var x = startX; x <= endX; x++)
+                        {
+                            PaintAtPoint(terrain, x, y, z);
+                        }
+                    }
+                }
+
+                EditorUtility.SetDirty(terrain);
+                mouseDownTileCursorPosition = null;
             }
         }
 
@@ -306,6 +355,12 @@ public class VoxelTerrainEditor : Editor
         Handles.color = new Color(0.35f, 0.4f, 0.8f, 0.5f);
         Handles.CubeCap(0, tileCursorPosition, Quaternion.identity, 1.0f);
 
+        if (mouseDownTileCursorPosition.HasValue)
+        {
+            Handles.color = new Color(0.4f, 0.8f, 0.35f, 0.5f);
+            Handles.CubeCap(0, mouseDownTileCursorPosition.Value, Quaternion.identity, 1.0f);
+        }
+
         var xColour = (alignment == PlaneAlignment.XY || alignment == PlaneAlignment.XZ || alignment == PlaneAlignment.X) ? Color.red : new Color(1, 1, 1, 0.5f);
         var yColour = (alignment == PlaneAlignment.YZ || alignment == PlaneAlignment.XY || alignment == PlaneAlignment.Y) ? Color.green : new Color(1, 1, 1, 0.5f);
         var zColour = (alignment == PlaneAlignment.XZ || alignment == PlaneAlignment.YZ || alignment == PlaneAlignment.Z) ? Color.blue : new Color(1, 1, 1, 0.5f);
@@ -322,5 +377,29 @@ public class VoxelTerrainEditor : Editor
         Handles.BeginGUI();
         GUI.Label(new Rect(screenPos.x, Screen.height - screenPos.y, 100, 40), string.Format("({0}, {1}, {2})", tileCursorPosition.x, tileCursorPosition.y, tileCursorPosition.z));
         Handles.EndGUI();
+    }
+
+    private void PaintAtPoint(VoxelTerrain terrain, int x, int y, int z)
+    {
+        if (!paintBlockType && paintShape)
+        {
+            var currentVoxel = terrain.GetVoxel(x, y, z);
+            if (currentVoxel.MeshShape != Voxel.MeshShapeType.None)
+            {
+                terrain.SetVoxel(x, y, z, currentVoxel.ChangeShape(selectedMeshShape, selectedRotation, selectedUpsideDown));
+            }
+        }
+        else if (paintBlockType && !paintShape)
+        {
+            var currentVoxel = terrain.GetVoxel(x, y, z);
+            if (currentVoxel.MeshShape != Voxel.MeshShapeType.None)
+            {
+                terrain.SetVoxel(x, y, z, currentVoxel.ChangeBlockType(selectedBlockType));
+            }
+        }
+        else
+        {
+            terrain.SetVoxel(x, y, z, new Voxel(selectedMeshShape, selectedRotation, selectedUpsideDown, selectedBlockType));
+        }
     }
 }

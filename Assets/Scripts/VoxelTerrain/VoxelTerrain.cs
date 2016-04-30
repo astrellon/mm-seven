@@ -41,7 +41,10 @@ public class VoxelTerrain : MonoBehaviour
 	// Update is called once per frame
 	void Update ()
     {
-	
+        if (!Application.isPlaying)
+        {
+            BlockTypes = GetComponentsInChildren<BlockType>().ToList<BlockType>();
+        }
 	}
 
     public void Clear()
