@@ -20,8 +20,8 @@ public class PlayerController : MonoBehaviour {
     {
         CharController = GetComponent<CharacterController>();
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        //Cursor.lockState = CursorLockMode.Locked;
+        //Cursor.visible = false;
     }
 
     bool IsInWater()
@@ -108,6 +108,7 @@ public class PlayerController : MonoBehaviour {
             ToggleHand();
         }
 
+        /*
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (Cursor.visible)
@@ -121,6 +122,8 @@ public class PlayerController : MonoBehaviour {
                 Cursor.visible = true;
             }
         }
+
+        */
 
         lookingAtPickupable = null;
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -143,7 +146,6 @@ public class PlayerController : MonoBehaviour {
         }
         CharController.Move(moveDirection * Time.deltaTime);
 
-        if (Cursor.lockState == CursorLockMode.Locked)
         {
             var h = 2.0f * Input.GetAxis("Mouse X");
             transform.Rotate(0, h, 0);
